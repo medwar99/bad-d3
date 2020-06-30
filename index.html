@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang='en'>
+<meta charset='UTF-8'>
+<style>
+    table {
+  border-collapse: collapse;
+  width: 60%;
+}
+
+th {
+    height: 80px;
+    background-color: mediumaquamarine;
+}
+
+th, td {
+    padding: 15px;
+  text-align: left;
+}
+
+tr:hover {
+    background-color: #b4b4b4;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table, th, td {
+  border: 1px solid lightslategray;
+  font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+}
+</style>
+
+<body width='500' height='1000'></body>
+<script src='src/d3.js'></script>
+<script src='src/underscore.js'></script>
+
+<script>
+    const svg = d3.select("body");
+
+    const cols = [{
+            head: 'Leaderboard Position',
+            cl: 'thispos',
+            html: function (row) {
+                console.log(row);
+                return row
+            }
+        },
+        {
+            head: 'Username',
+            cl: 'un',
+            html: function (row) {
+                return row.username
+            }
+        },
+        {
+            head: 'CW Leaderboard Position',
+            cl: 'cdwpos',
+            html: function (row) {
+                return row.leaderboardPosition
+            }
+        }
+    ]
+
+    const table = svg.append('table');
+    // replace with your own pls
+    const CODEWARSAPIKEY = 'JhLQB35PuvZGGVBpmqJn';
+    // WARNING: Do not continue to use the below proxy url at deployment stage -- you're totally reliant on someone elses Heroku app.
+    // For instructions to deploy your own check out:  https://stackoverflow.com/questions/43871637/no-access-control-allow-origin-header-is-present-on-the-requested-resource-whe/43881141
+    const proxyurl = "https://cors-anywhere.herokuapp.com/";
+    const codewarsUrl = "https://www.codewars.com/api/v1/users/";
+
+    // Get the data and build our object
+    const participants = d3.csv('src/codewars_usernames.csv');
+    const participantInfo = participants.then((data) => {
+        promises = data.map(row => d3.json(proxyurl + codewarsUrl + row.Username + '?access_key=' +
+            CODEWARSAPIKEY))
+        return Promise.all(promises.map(res => {
+            return res;
+        }))
+    })
+
+    const promise3 = participantInfo.then((pData) => {
+        let sortedParts = _.sortBy(pData, 'leaderboardPosition')
+        return sortedParts;
+    })
+
+    const boardBuilder = promise3.then((pData) => {
+        let numberRows = pData.length;
+        // build the outline
+        console.log(pData)
+        table.append('thead').append('tr')
+            .selectAll('th')
+            .data(cols).enter()
+            .append('th')
+            .attr('class', (r) => {
+                return r.cl
+            })
+            .text((r) => {
+                return r.head
+            });
+
+        table.append('tbody')
+            .selectAll('tr')
+            .data(pData).enter()
+            .append('tr')
+            .selectAll('td')
+            .data(function (row, i) {
+                // evaluate column objects against the current row
+                return cols.map(function (c) {
+                    var cell = {};
+                    d3.keys(c).forEach(function (k) {
+                        cell[k] = typeof c[k] == 'function' ? c[k](row, i) : c[k];
+                    });
+                    return cell;
+                });
+            }).enter()
+            .append('td')
+            .html((r) => {
+                return (_.indexOf(pData, r.html) >= 0 ? _.indexOf(pData, r.html) : r.html)
+            })
+            .attr('class', (r) => {
+                return r.cl
+            });
+    })
+</script>
